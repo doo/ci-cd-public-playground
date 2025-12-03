@@ -14,15 +14,9 @@ else
 fi
 
 # Check if license is available
-if [[ -n "${SCANBOT_LICENSE_FILE}" && -f "${SCANBOT_LICENSE_FILE}" ]]; then
-    # Read license from secure file
-    SCANBOT_LICENSE=$(cat "${SCANBOT_LICENSE_FILE}")
-elif [[ -n "${SCANBOT_LICENSE}" ]]; then
-    # Fallback to environment variable for backward compatibility
-    echo "WARNING: Using license from environment variable (less secure)"
-else
+if [[ -z "${SCANBOT_LICENSE}" ]]; then
     echo "ERROR: No license available"
-    echo "Neither SCANBOT_LICENSE_FILE nor SCANBOT_LICENSE is set"
+    echo "SCANBOT_LICENSE environment variable is not set"
     echo "Tests cannot run without a valid license"
     exit 1
 fi

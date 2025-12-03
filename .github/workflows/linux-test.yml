@@ -61,26 +61,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Create secure license file
-      - name: Prepare license file
-        run: |
-          # Create a temporary directory with restricted permissions
-          mkdir -p /tmp/scanbot-secrets
-          chmod 700 /tmp/scanbot-secrets
-          
-          # Use a temporary variable to avoid direct secret exposure
-          LICENSE_CONTENT="${{ secrets.SCANBOT_LICENSE_KEY }}"
-          
-          # Write license to a secure file with proper error handling
-          if [ -n "$LICENSE_CONTENT" ]; then
-            echo "$LICENSE_CONTENT" > /tmp/scanbot-secrets/license.key
-            chmod 600 /tmp/scanbot-secrets/license.key
-            echo "::add-mask::$(cat /tmp/scanbot-secrets/license.key)"
-          else
-            echo "ERROR: SCANBOT_LICENSE_KEY secret is not set"
-            exit 1
-          fi
-
       # Build the Docker image using the existing Dockerfile
       - name: Build Docker image (x86_64)
         run: |
@@ -92,43 +72,24 @@ jobs:
 
       # Run the test suite using dedicated script
       - name: Run test suite (x86_64)
+        env:
+          SCANBOT_LICENSE: ${{ secrets.SCANBOT_LICENSE_KEY }}
         run: |
-          # Mount the license file securely into the container
+          # Run tests inside the Docker container
           case "${{ inputs.test_suite || 'all' }}" in
             "python")
-              docker run --rm \
-                -v /tmp/scanbot-secrets:/secrets:ro \
-                -e SCANBOT_LICENSE_FILE=/secrets/license.key \
-                scanbot-linux-x86_64:latest /tests/test-python.sh
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-python.sh
               ;;
             "java")
-              docker run --rm \
-                -v /tmp/scanbot-secrets:/secrets:ro \
-                -e SCANBOT_LICENSE_FILE=/secrets/license.key \
-                scanbot-linux-x86_64:latest /tests/test-java.sh
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-java.sh
               ;;
             "nodejs")
-              docker run --rm \
-                -v /tmp/scanbot-secrets:/secrets:ro \
-                -e SCANBOT_LICENSE_FILE=/secrets/license.key \
-                scanbot-linux-x86_64:latest /tests/test-nodejs.sh
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-nodejs.sh
               ;;
             "c")
-              docker run --rm \
-                -v /tmp/scanbot-secrets:/secrets:ro \
-                -e SCANBOT_LICENSE_FILE=/secrets/license.key \
-                scanbot-linux-x86_64:latest /tests/test-c.sh
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-c.sh
               ;;
             "all"|*)
-              docker run --rm \
-                -v /tmp/scanbot-secrets:/secrets:ro \
-                -e SCANBOT_LICENSE_FILE=/secrets/license.key \
-                scanbot-linux-x86_64:latest /tests/run-all-tests.sh
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/run-all-tests.sh
               ;;
           esac
-
-      # Clean up sensitive files
-      - name: Cleanup secrets
-        if: always()
-        run: |
-          rm -rf /tmp/scanbot-secrets
