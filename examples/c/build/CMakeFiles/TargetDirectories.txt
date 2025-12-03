@@ -1,0 +1,3 @@
+/workspaces/scanbot-sdk-example-linux/examples/c/build/CMakeFiles/scanbotsdk_example.dir
+/workspaces/scanbot-sdk-example-linux/examples/c/build/CMakeFiles/edit_cache.dir
+/workspaces/scanbot-sdk-example-linux/examples/c/build/CMakeFiles/rebuild_cache.dir

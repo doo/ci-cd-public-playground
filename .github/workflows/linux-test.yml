@@ -1,0 +1,95 @@
+# GitHub Actions workflow for testing the Linux SDK example project
+# Supports both x86_64 and ARM64 architectures running in parallel
+name: Linux SDK Example CI Test
+
+# Trigger conditions
+on:
+  # Run on pushes to main branches affecting examples
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'examples/**'
+      - 'test-scripts/**'
+      - 'Dockerfile'
+      - '.github/workflows/linux-test.yml'
+  # Run on pull requests to main branches affecting examples  
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'examples/**'
+      - 'test-scripts/**'
+      - 'Dockerfile'
+      - '.github/workflows/linux-test.yml'
+  # Allow manual triggering with custom parameters
+  # TODO: we could remove test suite option later its just for testing purposes
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: 'SDK Version to test'
+        required: false
+        default: '0.800.5'
+        type: string
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - python
+          - java
+          - nodejs
+          - c
+
+# Global environment variables
+# TODO: This needs to be checked out from github or the app itself centralized
+env:
+  DEFAULT_SDK_VERSION: '0.800.5'
+
+jobs:
+  test-x86_64:
+    name: Test x86_64 Architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      # Get the source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Configure Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the Docker image using the existing Dockerfile
+      - name: Build Docker image (x86_64)
+        run: |
+          docker build \
+            --build-arg SDK_VERSION=${{ inputs.sdk_version || env.DEFAULT_SDK_VERSION }} \
+            --build-arg ARCH=linux-x86_64 \
+            --target base \
+            -t scanbot-linux-x86_64:latest .
+
+      # Run the test suite using dedicated script
+      - name: Run test suite (x86_64)
+        env:
+          SCANBOT_LICENSE: ${{ secrets.SCANBOT_LICENSE_KEY }}
+        run: |
+          # Run tests inside the Docker container
+          case "${{ inputs.test_suite || 'all' }}" in
+            "python")
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-python.sh
+              ;;
+            "java")
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-java.sh
+              ;;
+            "nodejs")
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-nodejs.sh
+              ;;
+            "c")
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/test-c.sh
+              ;;
+            "all"|*)
+              docker run --rm --env SCANBOT_LICENSE="${SCANBOT_LICENSE}" scanbot-linux-x86_64:latest /tests/run-all-tests.sh
+              ;;
+          esac
